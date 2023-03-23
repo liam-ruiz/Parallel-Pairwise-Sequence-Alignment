@@ -91,11 +91,9 @@ public class UsefulParScoring extends AbstractDnaScoring {
         this.s[0][0] = 0;
 
         // init ddf matrix
-        chunksize = 100;  //TODO: figure out good chunksize
-
+        chunksize = 100;
         ddfRows = (int)Math.ceil((double )xLength / chunksize);
         ddfCols = (int)Math.ceil((double)yLength / chunksize);
-
         for (int i = 0; i < ddfRows; i++) {
             ArrayList<HjDataDrivenFuture<Boolean>> row = new ArrayList<>();
             for (int j = 0; j < ddfCols; j++) {
@@ -132,38 +130,26 @@ public class UsefulParScoring extends AbstractDnaScoring {
                 }
                 asyncAwait(dependencies, () -> {
                     // convert DDF indices to SW indices
-                    //forseq(i * chunksize + 1, (i + 1) * chunksize, j * chunksize + 1, (j + 1) * chunksize, (k, l) -> {
                     for (int k = i * chunksize + 1; k <= (i + 1) * chunksize; k++) {
                         for (int l = j * chunksize + 1; l <= (j + 1) * chunksize; l++) {
+                            // check that indices are inbounds
                             if (k <= xLength && l <= yLength) {
-
+                                // do dp algorithm and update stored matrix
                                 final char XChar = x.charAt(k - 1);
                                 final char YChar = y.charAt(l - 1);
-
                                 // find the largest point to jump from, and use it
                                 final int diagScore = s[k - 1][l - 1] + getScore(charMap(XChar), charMap(YChar));
                                 final int topColScore = s[k - 1][l] + getScore(charMap(XChar), 0);
                                 final int leftRowScore = s[k][l - 1] + getScore(0, charMap(YChar));
-
                                 s[k][l] = Math.max(diagScore, Math.max(leftRowScore, topColScore));
-                                //System.out.println("[" + k + "][" + l + "] = " + s[k][l]);
                             }
                         }
                     }
-
-
-
-
-
-                    //make sure to put in the DDF
-//                    System.out.println("height: " + ddfs.size());
-//                    System.out.println("width: " + ddfs.get(0).size());
+                    // put in DDF to mark as done
                     ddfs.get(i).get(j).put(true);
                 });
             });
         });
-
-        //printMatrix(s);
         return s[xLength][yLength];
 
     }
