@@ -1,12 +1,34 @@
 package edu.rice.comp322;
 
+import edu.rice.hj.api.HjDataDrivenFuture;
 import edu.rice.hj.api.SuspendableException;
+
+import java.util.ArrayList;
+
+import static edu.rice.hj.Module0.*;
+import static edu.rice.hj.Module1.*;
 
 /**
  * A scorer that allocates memory during computation, so that it may compute the scores for two sequences without
  * requiring O(|X||Y|) memory.
  */
 public class SparseParScoring extends AbstractDnaScoring {
+    /**
+     * The length of the first sequence.
+     */
+    private final int xLength;
+    /**
+     * The length of the second sequence.
+     */
+    private final int yLength;
+
+    private final int[] topArr;
+
+    private final int[] leftArr;
+
+    private int[] diagOld = null;
+
+    private int[] diagRecent = null;
 
     /**
      * <p>main.</p> Takes the names of two files, and in parallel calculates the sequence aligment scores of the two DNA
@@ -30,9 +52,31 @@ public class SparseParScoring extends AbstractDnaScoring {
             throw new IllegalArgumentException("Lengths (" + xLength + ", " + yLength + ") must be positive!");
         }
 
-        // TODO: implement this sparsely!
+        this.xLength = xLength;
+        this.yLength = yLength;
+        //pre allocate the matrix for alignment, dimension+1 for initializations
+        this.leftArr = new int[xLength + 1];
+        this.topArr = new int[yLength+ 1];
 
-        throw new UnsupportedOperationException("Sparse parallel allocation not implemented yet!");
+
+        // init col 0
+        for (int ii = 1; ii < xLength + 1; ii++) {
+            this.leftArr[ii] = getScore(1, 0) * ii;
+        }
+        // init row 0
+        for (int jj = 1; jj < yLength + 1; jj++) {
+            this.topArr[jj] = getScore(0, 1) * jj;
+        }
+
+
+
+        //init diagonal
+        this.leftArr[0] = 0;
+        this.topArr[0] = 0;
+
+        this.diagRecent = new int[Math.max(xLength, yLength)];
+        this.diagOld = new int[Math.max(xLength, yLength)];
+
     }
 
     /**
@@ -42,9 +86,92 @@ public class SparseParScoring extends AbstractDnaScoring {
      */
     public int scoreSequences(final String x, final String y) throws SuspendableException {
 
-        // TODO: implement this in parallel!
+        final int xLength = this.xLength;
+        final int yLength = this.yLength;
 
-        throw new UnsupportedOperationException("Parallel scoring not implemented yet!");
+        HjDataDrivenFuture<Integer> ans = newDataDrivenFuture();
+
+        // for all total sum of indices
+        forseq(2, yLength + xLength, (l) -> {
+        //for (int l = 2; l <= yLength + xLength; l++) {
+            // TODO: ALSO HERE
+            final boolean beforeBigDiag = l - 1 <= xLength;
+            final int[] temp = new int[Math.max(xLength, yLength)];
+            finish(()-> {
+                forallChunked(1, l, (ii) -> {
+                    // the two characters to be compared
+                    final int i = l - ii;
+                    final int j = ii;
+                    final boolean rowInbounds = i >= 1 && i <= xLength;
+                    final boolean colInbounds = j >= 1 && j <= yLength;
+                    if (rowInbounds && colInbounds) {
+                        final char XChar = x.charAt(i - 1);
+                        final char YChar = y.charAt(j - 1);
+
+                        // TODO: MOST LIKELY POINT OF FAILURE
+                        final int offset = l > xLength + 1 ? l - xLength - 1: 0;
+                        final int numInDiag = ii - offset - 1;
+
+                        int diagScore;
+                        int leftRowScore;
+                        int topColScore;
+
+                        // find the largest point to jump from, and use it
+                        // get left dependency
+                        if (j == 1) {
+                            leftRowScore = leftArr[i] + getScore(0, charMap(YChar));
+                        } else {
+                            final int leftIdx = beforeBigDiag ? numInDiag - 1 : numInDiag;
+                            //System.out.println("(i, j): " + "(" + i + ", " + j + ")    " +  "ii: " + ii + "    l: " + l + "    numInDiag: " + numInDiag + "     leftIdx: " + leftIdx);
+                            leftRowScore = diagRecent[leftIdx] + getScore(0, charMap(YChar));
+                        }
+                        // get top dependency
+                        if (i == 1) {
+                            topColScore = topArr[j] + getScore(charMap(XChar), 0);
+                        } else {
+                            final int topIdx = beforeBigDiag ? numInDiag : numInDiag + 1;
+                            topColScore = diagRecent[topIdx] + getScore(charMap(XChar), 0);
+                        }
+
+                        // get diagonal dependency
+                        if (i == 1 && j == 1) {
+                            diagScore = topArr[0] + getScore(charMap(XChar), charMap(YChar));
+                        } else if (i == 1) {
+                            diagScore = topArr[j-1] + getScore(charMap(XChar), charMap(YChar));
+                        } else if (j == 1) {
+                            diagScore = leftArr[i-1] + getScore(charMap(XChar), charMap(YChar));
+                        } else if (l == xLength + 2){
+                            diagScore = diagOld[numInDiag] + getScore(charMap(XChar), charMap(YChar));
+                        } else {
+                            final int diagIdx = beforeBigDiag ? numInDiag - 1 : numInDiag + 1;
+                            diagScore = diagOld[diagIdx] + getScore(charMap(XChar), charMap(YChar));
+                        }
+
+
+
+                        final int score = Math.max(diagScore, Math.max(leftRowScore, topColScore));
+                        // return case
+                        if (i == xLength && j == yLength) {
+                            ans.put(score);
+                        }
+                        temp[numInDiag] = score;
+                    }
+
+
+
+                });
+            });
+            diagOld = diagRecent;
+            diagRecent = temp;
+
+
+
+
+
+
+        });
+
+        return ans.get();
     }
 
 }
