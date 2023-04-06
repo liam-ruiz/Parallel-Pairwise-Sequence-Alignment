@@ -21,13 +21,21 @@ public class SparseParScoring extends AbstractDnaScoring {
      * The length of the second sequence.
      */
     private final int yLength;
-
+    /**
+     * The array to hold the top row of scores
+     */
     private final int[] topArr;
-
+    /**
+     * The array to hold the left col of scores
+     */
     private final int[] leftArr;
-
+    /**
+     *  The array to hold the old diagonal of scores
+     */
     private int[] diagOld = null;
-
+    /**
+     * The array to hold the most recent diagonal of scores
+     */
     private int[] diagRecent = null;
 
     /**
@@ -56,7 +64,7 @@ public class SparseParScoring extends AbstractDnaScoring {
         this.yLength = yLength;
         //pre allocate the matrix for alignment, dimension+1 for initializations
         this.leftArr = new int[xLength + 1];
-        this.topArr = new int[yLength+ 1];
+        this.topArr = new int[yLength + 1];
 
 
         // init col 0
@@ -70,10 +78,10 @@ public class SparseParScoring extends AbstractDnaScoring {
 
 
 
-        //init diagonal
+
         this.leftArr[0] = 0;
         this.topArr[0] = 0;
-
+        //init diagonal
         this.diagRecent = new int[Math.max(xLength, yLength)];
         this.diagOld = new int[Math.max(xLength, yLength)];
 
@@ -109,7 +117,7 @@ public class SparseParScoring extends AbstractDnaScoring {
                         final char YChar = y.charAt(j - 1);
 
                         // TODO: MOST LIKELY POINT OF FAILURE
-                        final int offset = l > xLength + 1 ? l - xLength - 1: 0;
+                        final int offset = l > xLength + 1 ? l - xLength - 1 : 0;
                         final int numInDiag = ii - offset - 1;
 
                         int diagScore;
@@ -122,7 +130,6 @@ public class SparseParScoring extends AbstractDnaScoring {
                             leftRowScore = leftArr[i] + getScore(0, charMap(YChar));
                         } else {
                             final int leftIdx = beforeBigDiag ? numInDiag - 1 : numInDiag;
-                            //System.out.println("(i, j): " + "(" + i + ", " + j + ")    " +  "ii: " + ii + "    l: " + l + "    numInDiag: " + numInDiag + "     leftIdx: " + leftIdx);
                             leftRowScore = diagRecent[leftIdx] + getScore(0, charMap(YChar));
                         }
                         // get top dependency
@@ -137,10 +144,10 @@ public class SparseParScoring extends AbstractDnaScoring {
                         if (i == 1 && j == 1) {
                             diagScore = topArr[0] + getScore(charMap(XChar), charMap(YChar));
                         } else if (i == 1) {
-                            diagScore = topArr[j-1] + getScore(charMap(XChar), charMap(YChar));
+                            diagScore = topArr[j - 1] + getScore(charMap(XChar), charMap(YChar));
                         } else if (j == 1) {
-                            diagScore = leftArr[i-1] + getScore(charMap(XChar), charMap(YChar));
-                        } else if (l == xLength + 2){
+                            diagScore = leftArr[i - 1] + getScore(charMap(XChar), charMap(YChar));
+                        } else if (l == xLength + 2) {
                             diagScore = diagOld[numInDiag] + getScore(charMap(XChar), charMap(YChar));
                         } else {
                             final int diagIdx = beforeBigDiag ? numInDiag - 1 : numInDiag + 1;
