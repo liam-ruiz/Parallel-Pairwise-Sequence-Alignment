@@ -1,3 +1,7 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-8d59dc4de5201274e310e4c54b9627a8934c3b88527886e3b421487c677d23eb.svg)](https://classroom.github.com/a/4ir64HSD)
+There are 3 implementations of a parallelized DP pairwise sequence alignment algorithm.
 
-2 Slip days on this assignment please :)
+The first assumes there is no cost of overhead in creating asynchronous tasks (envisions ideal parallelism). This is located in IdealParScoring.java
+
+The second tries to achieve the highest speedup over the sequential algorithm, taking into account actual performance with the overhead of creating asynchronous tasks. This is located in UsefulParScoring.java. 
+
+The third tries to achieve the highest speedup over the sequential algorithm with the added restriction that the algorithm must use less than O(n^2) space. This is located in SparseParScoring.java
